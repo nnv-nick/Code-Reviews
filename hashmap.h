@@ -84,9 +84,9 @@ class HashMap {
 
     void HalveSize();
 
-    iterator FindKey(size_t bucket, const KeyType key);
+    iterator FindKey(const KeyType key);
 
-    const_iterator FindKeyConst(size_t bucket, const KeyType key) const;
+    const_iterator FindKeyConst(const KeyType key) const;
 };
 
 template<class KeyType, class ValueType, class Hash>
@@ -107,8 +107,8 @@ HashMap<KeyType, ValueType, Hash>::HashMap(
 
 template<class KeyType, class ValueType, class Hash>
 HashMap<KeyType, ValueType, Hash>::HashMap(
-        std::initializer_list<KeyValuePair>
-             to_hashmap, Hash new_hash) : hasher_(new_hash) {
+        std::initializer_list<KeyValuePair> to_hashmap,
+            Hash new_hash) : hasher_(new_hash) {
     hash_table_.resize(modulo_);
     for (auto it : to_hashmap) {
         insert(it);
@@ -117,24 +117,23 @@ HashMap<KeyType, ValueType, Hash>::HashMap(
 
 template<class KeyType, class ValueType, class Hash>
 void HashMap<KeyType, ValueType, Hash>::insert(
-    KeyValuePair new_elem) {
-        size_t bucket = hasher_(new_elem.first) % modulo_;
-        iterator check = FindKey(bucket, new_elem.first);
-        if (check != elements_.end()) {
-            return;
-        }
-        num_elements_++;
-        elements_.push_back(new_elem);
-        hash_table_[bucket].push_back(std::prev(elements_.end()));
-        if (modulo_ == num_elements_) {
-            DoubleSize();
-        }
+        KeyValuePair new_elem) {
+    iterator check = FindKey(new_elem.first);
+    if (check != elements_.end()) {
+        return;
     }
+    num_elements_++;
+    size_t bucket = hasher_(new_elem.first) % modulo_;
+    elements_.push_back(new_elem);
+    hash_table_[bucket].push_back(std::prev(elements_.end()));
+    if (modulo_ == num_elements_) {
+        DoubleSize();
+    }
+}
 
 template<class KeyType, class ValueType, class Hash>
 auto HashMap<KeyType, ValueType, Hash>::find(const KeyType key) -> iterator {
-    size_t bucket = hasher_(key) % modulo_;
-    iterator check = FindKey(bucket, key);
+    iterator check = FindKey(key);
     if (check != elements_.end()) {
         return check;
     }
@@ -143,9 +142,8 @@ auto HashMap<KeyType, ValueType, Hash>::find(const KeyType key) -> iterator {
 
 template<class KeyType, class ValueType, class Hash>
 auto HashMap<KeyType, ValueType, Hash>::find(const KeyType key)
-    const -> const_iterator {
-    size_t bucket = hasher_(key) % modulo_;
-    const_iterator check = FindKeyConst(bucket, key);
+        const -> const_iterator {
+    const_iterator check = FindKeyConst(key);
     if (check != elements_.end()) {
         return check;
     }
@@ -180,8 +178,7 @@ void HashMap<KeyType, ValueType, Hash>::clear() {
 
 template<class KeyType, class ValueType, class Hash>
 ValueType& HashMap<KeyType, ValueType, Hash>::operator[](const KeyType key) {
-    size_t bucket = hasher_(key) % modulo_;
-    iterator check = FindKey(bucket, key);
+    iterator check = FindKey(key);
     if (check != elements_.end()) {
         return (check->second);
     }
@@ -192,9 +189,8 @@ ValueType& HashMap<KeyType, ValueType, Hash>::operator[](const KeyType key) {
 
 template<class KeyType, class ValueType, class Hash>
 const ValueType& HashMap<KeyType, ValueType, Hash>::at(const KeyType key)
-    const {
-    size_t bucket = hasher_(key) % modulo_;
-    const_iterator check = FindKeyConst(bucket, key);
+        const {
+    const_iterator check = FindKeyConst(key);
     if (check != elements_.end()) {
         return (check->second);
     }
@@ -203,7 +199,7 @@ const ValueType& HashMap<KeyType, ValueType, Hash>::at(const KeyType key)
 
 template<class KeyType, class ValueType, class Hash>
 HashMap<KeyType, ValueType, Hash>& HashMap<KeyType, ValueType, Hash>::operator=(
-    const HashMap<KeyType, ValueType, Hash>& another_hashmap) {
+        const HashMap<KeyType, ValueType, Hash>& another_hashmap) {
     if (this == &another_hashmap) {
         return *this;
     }
@@ -237,7 +233,8 @@ void HashMap<KeyType, ValueType, Hash>::HalveSize() {
 
 template<class KeyType, class ValueType, class Hash>
 auto HashMap<KeyType, ValueType, Hash>::FindKey(
-    size_t bucket, const KeyType key) -> iterator {
+        const KeyType key) -> iterator {
+    size_t bucket = hasher_(key) % modulo_;
     for (auto it : hash_table_[bucket]) {
         if (it->first == key) {
             return it;
@@ -248,7 +245,8 @@ auto HashMap<KeyType, ValueType, Hash>::FindKey(
 
 template<class KeyType, class ValueType, class Hash>
 auto HashMap<KeyType, ValueType, Hash>::FindKeyConst(
-    size_t bucket, const KeyType key) const -> const_iterator {
+        const KeyType key) const -> const_iterator {
+    size_t bucket = hasher_(key) % modulo_;
     for (auto it : hash_table_[bucket]) {
         if (it->first == key) {
             return it;
