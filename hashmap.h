@@ -9,13 +9,9 @@
 template<class KeyType, class ValueType, class Hash = std::hash<KeyType> >
 class HashMap {
  public:
-    using iterator = typename std::list<
-        std::pair<const KeyType, ValueType> >::iterator;
-    using const_iterator = typename std::list<
-        std::pair<const KeyType, ValueType> >::const_iterator;
-    using elem_pair = std::pair<const KeyType, ValueType>;
-    using ConstKeyValuePair = std::pair<const KeyType, ValueType>;
-    using KeyValuePair = std::pair<KeyType, ValueType>;
+    using KeyValuePair = std::pair<const KeyType, ValueType>;
+    using iterator = typename std::list<KeyValuePair>::iterator;
+    using const_iterator = typename std::list<KeyValuePair>::const_iterator;
 
     iterator begin() {
         return elements_.begin();
@@ -47,9 +43,9 @@ class HashMap {
         return hasher_;
     }
 
-    iterator find(KeyType key);
+    iterator find(const KeyType key);
 
-    const_iterator find(KeyType key) const;
+    const_iterator find(const KeyType key) const;
 
     int size() const {
         return num_elements_;
@@ -59,7 +55,7 @@ class HashMap {
         return (num_elements_ == 0);
     }
 
-    void erase(KeyType key);
+    void erase(const KeyType key);
 
     ValueType& operator[](const KeyType key);
 
@@ -70,28 +66,27 @@ class HashMap {
     HashMap& operator=(const HashMap& another_hashmap);
 
  private:
-    std::list<ConstKeyValuePair> elements_;
+    const int initialModulo_ = 8;
 
-    std::vector< std::list< typename std::list<
-     ConstKeyValuePair>::iterator > > hash_table_;
+    std::list<KeyValuePair> elements_;
 
-    int modulo_ = 8;
+    std::vector< std::list<iterator> > hash_table_;
+
+    int modulo_ = initialModulo_;
 
     int num_elements_ = 0;
 
     Hash hasher_;
 
-    void rebuild(int new_modulo);
+    void Rebuild(int new_modulo);
 
     void DoubleSize();
 
     void HalveSize();
 
-    typename std::list<ConstKeyValuePair>::iterator
-        find_key(size_t bucket, KeyType key);
+    iterator FindKey(size_t bucket, const KeyType key);
 
-    typename std::list<ConstKeyValuePair>::const_iterator
-        find_key_const(size_t bucket, KeyType key) const;
+    const_iterator FindKeyConst(size_t bucket, const KeyType key) const;
 };
 
 template<class KeyType, class ValueType, class Hash>
@@ -112,7 +107,7 @@ HashMap<KeyType, ValueType, Hash>::HashMap(
 
 template<class KeyType, class ValueType, class Hash>
 HashMap<KeyType, ValueType, Hash>::HashMap(
-        std::initializer_list<std::pair<KeyType, ValueType> >
+        std::initializer_list<KeyValuePair>
              to_hashmap, Hash new_hash) : hasher_(new_hash) {
     hash_table_.resize(modulo_);
     for (auto it : to_hashmap) {
@@ -122,12 +117,12 @@ HashMap<KeyType, ValueType, Hash>::HashMap(
 
 template<class KeyType, class ValueType, class Hash>
 void HashMap<KeyType, ValueType, Hash>::insert(
-    std::pair<KeyType, ValueType> new_elem) {
+    KeyValuePair new_elem) {
         size_t bucket = hasher_(new_elem.first) % modulo_;
-        typename std::list< std::pair<const KeyType, ValueType> >::iterator
-            check = find_key(bucket, new_elem.first);
-        if (check != elements_.end())
+        iterator check = FindKey(bucket, new_elem.first);
+        if (check != elements_.end()) {
             return;
+        }
         num_elements_++;
         elements_.push_back(new_elem);
         hash_table_[bucket].push_back(std::prev(elements_.end()));
@@ -137,29 +132,28 @@ void HashMap<KeyType, ValueType, Hash>::insert(
     }
 
 template<class KeyType, class ValueType, class Hash>
-typename std::list< std::pair<const KeyType, ValueType> >::iterator
-HashMap<KeyType, ValueType, Hash>::find(KeyType key) {
+auto HashMap<KeyType, ValueType, Hash>::find(const KeyType key) -> iterator {
     size_t bucket = hasher_(key) % modulo_;
-    typename std::list< std::pair<const KeyType, ValueType> >::iterator
-        check = find_key(bucket, key);
-    if (check != elements_.end())
+    iterator check = FindKey(bucket, key);
+    if (check != elements_.end()) {
         return check;
+    }
     return elements_.end();
 }
 
 template<class KeyType, class ValueType, class Hash>
-typename std::list<std::pair<const KeyType, ValueType> >::const_iterator
-HashMap<KeyType, ValueType, Hash>::find(KeyType key) const {
+auto HashMap<KeyType, ValueType, Hash>::find(const KeyType key)
+    const -> const_iterator {
     size_t bucket = hasher_(key) % modulo_;
-    typename std::list< std::pair<const KeyType, ValueType> >::const_iterator
-        check = find_key_const(bucket, key);
-    if (check != elements_.end())
+    const_iterator check = FindKeyConst(bucket, key);
+    if (check != elements_.end()) {
         return check;
+    }
     return elements_.cend();
 }
 
 template<class KeyType, class ValueType, class Hash>
-void HashMap<KeyType, ValueType, Hash>::erase(KeyType key) {
+void HashMap<KeyType, ValueType, Hash>::erase(const KeyType key) {
     size_t bucket = hasher_(key) % modulo_;
     for (auto it = hash_table_[bucket].begin();
         it != hash_table_[bucket].end(); it++) {
@@ -172,7 +166,7 @@ void HashMap<KeyType, ValueType, Hash>::erase(KeyType key) {
                 }
                 return;
             }
-        }
+    }
 }
 
 template<class KeyType, class ValueType, class Hash>
@@ -180,30 +174,30 @@ void HashMap<KeyType, ValueType, Hash>::clear() {
     hash_table_.clear();
     elements_.clear();
     num_elements_ = 0;
-    modulo_ = 8;
+    modulo_ = initialModulo_;
     hash_table_.resize(modulo_);
 }
 
 template<class KeyType, class ValueType, class Hash>
 ValueType& HashMap<KeyType, ValueType, Hash>::operator[](const KeyType key) {
     size_t bucket = hasher_(key) % modulo_;
-    typename std::list< std::pair<const KeyType, ValueType> >::iterator
-        check = find_key(bucket, key);
-    if (check != elements_.end())
+    iterator check = FindKey(bucket, key);
+    if (check != elements_.end()) {
         return (check->second);
+    }
     ValueType v = {};
-    insert(std::pair<KeyType, ValueType>(key, v));
-    return ((find(key))->second);
+    insert(KeyValuePair(key, v));
+    return find(key)->second;
 }
 
 template<class KeyType, class ValueType, class Hash>
 const ValueType& HashMap<KeyType, ValueType, Hash>::at(const KeyType key)
     const {
     size_t bucket = hasher_(key) % modulo_;
-    typename std::list< std::pair<const KeyType, ValueType> >::const_iterator
-        check = find_key_const(bucket, key);
-    if (check != elements_.end())
+    const_iterator check = FindKeyConst(bucket, key);
+    if (check != elements_.end()) {
         return (check->second);
+    }
     throw std::out_of_range("");
 }
 
@@ -221,7 +215,7 @@ HashMap<KeyType, ValueType, Hash>& HashMap<KeyType, ValueType, Hash>::operator=(
 }
 
 template<class KeyType, class ValueType, class Hash>
-void HashMap<KeyType, ValueType, Hash>::rebuild(int new_modulo) {
+void HashMap<KeyType, ValueType, Hash>::Rebuild(int new_modulo) {
     modulo_ = new_modulo;
     hash_table_.clear();
     hash_table_.resize(modulo_);
@@ -233,29 +227,32 @@ void HashMap<KeyType, ValueType, Hash>::rebuild(int new_modulo) {
 
 template<class KeyType, class ValueType, class Hash>
 void HashMap<KeyType, ValueType, Hash>::DoubleSize() {
-    rebuild(modulo_ * 2);
+    Rebuild(modulo_ * 2);
 }
 
 template<class KeyType, class ValueType, class Hash>
 void HashMap<KeyType, ValueType, Hash>::HalveSize() {
-    rebuild(modulo_ / 2);
+    Rebuild(modulo_ / 2);
 }
 
 template<class KeyType, class ValueType, class Hash>
-typename std::list< std::pair<const KeyType, ValueType> >::iterator
-HashMap<KeyType, ValueType, Hash>::find_key(size_t bucket, KeyType key) {
-    for (auto it : hash_table_[bucket])
-        if (it->first == key)
+auto HashMap<KeyType, ValueType, Hash>::FindKey(
+    size_t bucket, const KeyType key) -> iterator {
+    for (auto it : hash_table_[bucket]) {
+        if (it->first == key) {
             return it;
+        }
+    }
     return elements_.end();
 }
 
 template<class KeyType, class ValueType, class Hash>
-typename std::list< std::pair<const KeyType, ValueType> >::const_iterator
-HashMap<KeyType, ValueType, Hash>::find_key_const(
-    size_t bucket, KeyType key) const {
-    for (auto it : hash_table_[bucket])
-        if (it->first == key)
+auto HashMap<KeyType, ValueType, Hash>::FindKeyConst(
+    size_t bucket, const KeyType key) const -> const_iterator {
+    for (auto it : hash_table_[bucket]) {
+        if (it->first == key) {
             return it;
+        }
+    }
     return elements_.end();
 }
